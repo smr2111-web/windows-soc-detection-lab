@@ -1,0 +1,2 @@
+index=* source="*Sysmon*" EventCode=1 Image="*powershell.exe" (CommandLine="*-enc*" OR CommandLine="*-EncodedCommand*")
+| stats count by _time, User, ParentImage, CommandLine
