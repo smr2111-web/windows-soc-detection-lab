@@ -33,6 +33,31 @@ index=* source="WinEventLog:Security" EventCode=4625
 ```
 * ![Splunk Alert Configuration](detections/screenshots/03_splunk_alert.png)
 
+---
+
+## Lab 2: Sysmon Process Creation & Encoded PowerShell Detection
+
+### Overview & MITRE ATT&CK Mapping
+Standard Windows Security logs lack visibility into full command-line arguments. Installed **Sysmon** and forwarded `Microsoft-Windows-Sysmon/Operational` logs to Splunk to detect obfuscated command execution (**MITRE ATT&CK T1059.001 — PowerShell**).
+
+### 1. Attack Simulation & Process Tree Investigation
+* **Simulation:** Executed a Base64-encoded PowerShell payload (`-EncodedCommand`) from `cmd.exe` to mimic obfuscated attacker execution.
+* **Splunk Investigation:** Queried **Sysmon Event ID 1 (Process Creation)** to inspect parent-child process relationships (`ParentImage` -> `Image`) and full `CommandLine` arguments:
+  ```spl
+  index=* source="*Sysmon*" EventCode=1 Image="*WindowsPowerShell*powershell.exe"
+  | table _time, ParentImage, Image, CommandLine, User
+  | sort - _time
+  ```
+* ![Sysmon Process Tree](detections/screenshots/04_sysmon_process_tree.png)
+
+### 2. Encoded PowerShell Alert Engineering
+Created a shared, **High** severity scheduled alert (`Suspicious Encoded PowerShell Execution (Sysmon ID 1)`) to detect obfuscated PowerShell flags (`-enc` / `-EncodedCommand`):
+```spl
+index=* source="*Sysmon*" EventCode=1 Image="*powershell.exe" (CommandLine="*-enc*" OR CommandLine="*-EncodedCommand*")
+| stats count by _time, User, ParentImage, CommandLine
+```
+* ![Sysmon Alert Configuration](detections/screenshots/05_sysmon_powershell_alert.png)
+
 ## Key Takeaways & Next Steps
 * Correlating host-level logs (Event ID 4625) with network telemetry (TCP RST packets) reduces false positives during SOC triage.
 * **Future Improvement:** Install **Sysmon** on the Windows host to gain deeper visibility into process creation (`Event ID 1`) and network connections (`Event ID 3`) inside Splunk.
